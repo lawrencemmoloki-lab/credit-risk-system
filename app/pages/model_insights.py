@@ -18,15 +18,14 @@ except FileNotFoundError:
 # Feature importance
 st.markdown("Feature Importance")
 
-# FIX: Automatically get the feature names directly from the trained model!
-# This guarantees the lists are the exact same length.
-try:
-    features = list(model.feature_names_in_)
-except AttributeError:
-    # Fallback just in case
-    features = ["duration", "credit_amount", "age", "installment_rate"]
-
 importance = model.feature_importances_
+
+# SAFE FIX: Dynamically get the exact number of features the model expects
+if hasattr(model, 'feature_names_in_'):
+    features = list(model.feature_names_in_)
+else:
+    # If the model doesn't have names stored, create generic names to match the length
+    features = [f"Feature_{i+1}" for i in range(len(importance))]
 
 df = pd.DataFrame({
     "Feature": features,
@@ -36,5 +35,5 @@ df = pd.DataFrame({
 st.bar_chart(df.set_index("Feature"))
 
 # Basic model info
-st.markdown("Model Type")
+st.markdown(" Model Type")
 st.write(type(model).__name__)
