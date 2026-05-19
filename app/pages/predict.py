@@ -1,20 +1,29 @@
 import streamlit as st
 import pickle
 import numpy as np
+from pathlib import Path
 
 st.title("Credit Risk Prediction")
 
-model = pickle.load(open("src/model.pkl", "rb"))
+# FIX 1: Use pathlib to find the correct path on Streamlit Cloud
+ROOT_DIR = Path(__file__).parent.parent.parent
+MODEL_PATH = ROOT_DIR / "src" / "model.pkl"
 
-duration = st.slider("Duration", 1, 72, 12)
-credit = st.number_input("Credit Amount", 100, 100000, 5000)
+try:
+    model = pickle.load(open(MODEL_PATH, "rb"))
+except FileNotFoundError:
+    st.error(f"Model file not found! Looked at: {MODEL_PATH}. Make sure you pushed it to GitHub!")
+    st.stop()
+
+# FIX 2: Only use the 4 features the model was trained on!
+duration = st.slider("Loan Duration (months)", 1, 72, 12)
+credit = st.number_input("Credit Amount ($)", 100, 100000, 5000, step=500)
 age = st.slider("Age", 18, 100, 30)
 installment = st.slider("Installment Rate", 1, 4, 2)
-existing = st.slider("Existing Credits", 1, 4, 1)
 
-if st.button("Predict"):
-
-    X = np.array([[duration, credit, age, installment, existing]])
+if st.button("Predict Risk", type="primary"):
+    # Make sure the array only has 4 columns to match the model
+    X = np.array([[duration, credit, age, installment]])
 
     pred = model.predict(X)[0]
     prob = model.predict_proba(X)[0][1]
@@ -26,5 +35,5 @@ if st.button("Predict"):
     else:
         st.error("🔴 HIGH RISK")
 
-    st.write("Probability:", round(prob, 2))
+    st.write(f"**Default Probability:** {prob * 100:.1f}%")
     st.progress(int(prob * 100))
