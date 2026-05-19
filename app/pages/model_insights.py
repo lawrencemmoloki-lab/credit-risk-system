@@ -5,7 +5,7 @@ from pathlib import Path
 
 st.title("Model Insights")
 
-# FIX 1: Use pathlib to find the correct path on Streamlit Cloud
+# Path fix
 ROOT_DIR = Path(__file__).parent.parent.parent
 MODEL_PATH = ROOT_DIR / "src" / "model.pkl"
 
@@ -18,13 +18,13 @@ except FileNotFoundError:
 # Feature importance
 st.markdown("Feature Importance")
 
-# FIX 2: Ensure these match EXACTLY the 4 features we trained the model on!
-features = [
-    "duration",
-    "credit_amount",
-    "age",
-    "installment_rate"
-]
+# FIX: Automatically get the feature names directly from the trained model!
+# This guarantees the lists are the exact same length.
+try:
+    features = list(model.feature_names_in_)
+except AttributeError:
+    # Fallback just in case
+    features = ["duration", "credit_amount", "age", "installment_rate"]
 
 importance = model.feature_importances_
 
