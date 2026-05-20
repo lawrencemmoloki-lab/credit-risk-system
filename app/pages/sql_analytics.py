@@ -1,45 +1,73 @@
 import streamlit as st
 import pandas as pd
-from src.connect_db import engine
+from sqlalchemy import create_engine
+from dotenv import load_dotenv
+import os
+import urllib.parse
+
+# --- SMART DATABASE CONNECTION ---
+load_dotenv()
+
+# This reads from local .env file OR Streamlit Cloud Secrets
+DB_HOST = os.getenv("DB_HOST") or st.secrets.get("DB_HOST")
+DB_NAME = os.getenv("DB_NAME") or st.secrets.get("DB_NAME")
+DB_USER = os.getenv("DB_USER") or st.secrets.get("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD") or st.secrets.get("DB_PASSWORD")
+DB_PORT = os.getenv("DB_PORT") or st.secrets.get("DB_PORT")
+
+# Safely encode the password (fixes the @ symbol issue)
+encoded_password = urllib.parse.quote_plus(DB_PASSWORD) if DB_PASSWORD else ""
+
+DATABASE_URL = f"postgresql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_engine(DATABASE_URL)
+# -------------------------------------------
 
 st.title("SQL Analytics Dashboard")
 
-def run_query(q):
-    return pd.read_sql(q, engine)
+st.markdown("Real-time business insights pulled directly from the PostgreSQL database.")
 
-# 1. Default rate by employment
-st.markdown("Default Rate by Employment")
+# Query 1: Default risk by housing
+st.subheader("1. Default Risk by Housing Type")
+try:
+    query1 = """
+    SELECT housing, AVG(default_status) AS default_rate
+    FROM customers c
+    JOIN loans l ON c.customer_id = l.customer_id
+    GROUP BY housing
+    ORDER BY default_rate DESC;
+    """
+    df1 = pd.read_sql(query1, engine)
+    st.dataframe(df1)
+    st.bar_chart(df1, x="housing", y="default_rate")
+except Exception as e:
+    st.error(f"Error: {e}")
 
-q1 = """
-SELECT employment, AVG(default_status) AS default_rate
-FROM loans
-GROUP BY employment
-ORDER BY default_rate DESC;
-"""
+# Query 2: Average loan amount by employment
+st.subheader("2. Average Loan Amount by Employment Status")
+try:
+    query2 = """
+    SELECT employment, AVG(credit_amount) AS avg_credit_amount
+    FROM loans
+    GROUP BY employment
+    ORDER BY avg_credit_amount DESC;
+    """
+    df2 = pd.read_sql(query2, engine)
+    st.dataframe(df2)
+    st.bar_chart(df2, x="employment", y="avg_credit_amount")
+except Exception as e:
+    st.error(f"Error: {e}")
 
-df1 = run_query(q1)
-st.bar_chart(df1.set_index("employment"))
-
-# 2. Credit history risk
-st.markdown("Risk by Credit History")
-
-q2 = """
-SELECT credit_history, AVG(default_status) AS default_rate
-FROM loans
-GROUP BY credit_history;
-"""
-
-df2 = run_query(q2)
-st.bar_chart(df2.set_index("credit_history"))
-
-# 3. Loan size vs risk
-st.markdown("Loan Size vs Default")
-
-q3 = """
-SELECT default_status, AVG(credit_amount) AS avg_loan
-FROM loans
-GROUP BY default_status;
-"""
-
-df3 = run_query(q3)
-st.bar_chart(df3.set_index("default_status"))
+# Query 3: Highest-risk purposes
+st.subheader("3. Highest-Risk Loan Purposes")
+try:
+    query3 = """
+    SELECT purpose, AVG(default_status) AS risk_rate
+    FROM loans
+    GROUP BY purpose
+    ORDER BY risk_rate DESC;
+    """
+    df3 = pd.read_sql(query3, engine)
+    st.dataframe(df3)
+    st.bar_chart(df3, x="purpose", y="risk_rate")
+except Exception as e:
+    st.error(f"Error: {e}")
